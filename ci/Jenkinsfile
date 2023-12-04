@@ -1,0 +1,38 @@
+node {
+    // def errorException
+    def dockerImage = 'linters-image:latest'
+    def dockerFileFolder = 'ci/'
+    def groovyLintResultFile = 'groovy-report.xml'
+    // def groovyLintXmlResultFile = 'groovy-report.xml'
+
+    try {
+        stage('Checkout') {
+            deleteDir()
+            checkout scm
+        }
+
+        stage('Build Docker Image and Linting') {
+            def dockerLinterImage = docker.build("${dockerImage}", "${dockerFileFolder}")
+            def groovyFiles = sh(script: "find . -name '*.groovy' -or -name 'Jenkinsfile'", returnStdout: true).trim()
+
+            dockerLinterImage.inside {
+                try {
+                    sh "npm-groovy-lint ${groovyFiles} > ${groovyLintResultFile}"
+                    if (!fileExists(groovyLintResultFile)) {
+                        throw new Exception("GroovyLint result file not found.")
+                    }
+                } catch (e) {
+                    // errorException = e
+                    throw e
+                }
+            }
+        }
+
+        stage('Parsing Results') {
+            recordIssues tools: [checkStyle(pattern: "${groovyLintResultFile}")]
+        }
+    } catch (e) {
+        // errorException = e
+        throw e
+    }
+}
