@@ -12,6 +12,7 @@ node {
         }
 
         stage('Build Docker Image and Linting') {
+            sh "docker --version"
             def dockerLinterImage = docker.build("${dockerImage}", "${dockerFileFolder}")
             def groovyFiles = sh(script: "find . -name '*.groovy' -or -name 'Jenkinsfile'", returnStdout: true).trim()
 
